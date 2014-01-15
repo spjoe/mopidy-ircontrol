@@ -15,7 +15,7 @@ setup(
     version=get_version('mopidy_IRControl/__init__.py'),
     url='https://github.com/spjoe/mopidy-ircontrol',
     license='Apache License, Version 2.0',
-    author='Camillo Dell'mour'',
+    author="Camillo Dell'mour",
     author_email='cdellmour@gmail.com',
     description='Mopidy frontend to be controlled with an IR controller',
     long_description=open('README.rst').read(),
