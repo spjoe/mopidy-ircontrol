@@ -26,6 +26,7 @@ setup(
         'setuptools',
         'Mopidy >= 0.17',
         'Pykka >= 1.1',
+        'pylirc >= 0.0.5',
     ],
     test_suite='nose.collector',
     tests_require=[

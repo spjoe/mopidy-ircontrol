@@ -27,18 +27,35 @@ class Extension(ext.Extension):
 
     def get_config_schema(self):
         schema = super(Extension, self).get_config_schema()
-        # TODO: Comment in and edit, or remove entirely
-        #schema['username'] = config.String()
-        #schema['password'] = config.Secret()
+        schema['mute'] = config.String()
+        schema['next'] = config.String()
+        schema['previous'] = config.String()
+        schema['playpause'] = config.String()
+        schema['stop'] = config.String()
+        schema['volumeup'] = config.String()
+        schema['volumedown'] = config.String()
+        schema['power'] = config.String()
+        schema['menu'] = config.String()
+        schema['favorites'] = config.String()
+        schema['search'] = config.String()
+        schema['num0'] = config.String()
+        schema['num1'] = config.String()
+        schema['num2'] = config.String()
+        schema['num3'] = config.String()
+        schema['num4'] = config.String()
+        schema['num5'] = config.String()
+        schema['num6'] = config.String()
+        schema['num7'] = config.String()
+        schema['num8'] = config.String()
+        schema['num9'] = config.String()
         return schema
 
     # You will typically only implement a couple of the next methods
     # in a single extension.
 
-    # TODO: Comment in and edit, or remove entirely
-    #def get_frontend_classes(self):
-    #    from .frontend import FoobarFrontend
-    #    return [FoobarFrontend]
+    def get_frontend_classes(self):
+        from .actor import IRControlFrontend
+        return [IRControlFrontend]
 
     # TODO: Comment in and edit, or remove entirely
     #def get_backend_classes(self):
