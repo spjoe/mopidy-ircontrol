@@ -13,12 +13,37 @@ logger = logging.getLogger('mopidy_IRControl')
 LIRC_PROG_NAME = "mopidyIRControl"
 
 
+class CommandDispatcher(object):
+    def __init__(self, core):
+        self.core = core
+        self._handlers = {}
+        self.registerHandler('playpause', self._playpauseHandler)
+
+    def handleCommand(self, cmd):
+        handler = self._handlers[cmd]
+        if handler:
+            handler(self.core)
+
+    def registerHandler(self, cmd, handler):
+        self._handlers[cmd] = handler
+
+    def _playpauseHandler(self, core):
+        state = core.playback.state.get()
+        if(state == PlaybackState.PAUSED):
+            core.playback.resume().get()
+        elif (state == PlaybackState.PLAYING):
+            core.playback.pause().get()
+        elif (state == PlaybackState.STOPPED):
+            core.playback.play().get()
+
+
 class LircThread(process.BaseThread):
     def __init__(self, core, configFile):
         super(LircThread, self).__init__()
         self.name = 'Lirc worker thread'
         self.core = core
         self.configFile = configFile
+        self.dispatcher = CommandDispatcher(core)
 
     def run_inside_try(self):
         self.startPyLirc()
@@ -35,16 +60,13 @@ class LircThread(process.BaseThread):
         if s:
             self.handleLircCommand(s)
 
-    def handleLircCommand(self, s):
+    def handleLircCode(self, s):
         for code in s:
-            state = self.core.playback.state.get()
-            if(code['config'] == 'playpause' and
-                    state == PlaybackState.PAUSED):
-                self.core.playback.resume().get()
-            elif (code['config'] == 'playpause' and
-                    state == PlaybackState.PLAYING):
-                self.core.playback.pause().get()
-            logger.debug('Command: {0}'.format(code['config']))
+            self.handleCommand(code['config'])
+
+    def handleCommand(self, cmd):
+        logger.debug('Command: {0}'.format(cmd))
+        self.dispatcher.handleCommand(cmd)
 
 
 class IRControlFrontend(pykka.ThreadingActor):
@@ -61,7 +83,7 @@ class IRControlFrontend(pykka.ThreadingActor):
             self.thread = LircThread(self.core, self.configFile)
             self.thread.start()
             logger.debug('IRControl started')
-        except Exception as e:
+        except Exception:
             logger.warning('IRControl has not started')
             self.stop()
 
