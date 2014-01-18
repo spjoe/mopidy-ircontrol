@@ -23,7 +23,6 @@ class LircThread(process.BaseThread):
     def startPyLirc(self):
         if(pylirc.init(LIRC_PROG_NAME, self.configFile, 1)):
             while(True):
-                logger.debug('get next code from pylirc')
                 s = pylirc.nextcode(1)
                 self.handleNextCode(s)
             pylirc.exit()
@@ -49,15 +48,18 @@ class IRControlFrontend(pykka.ThreadingActor):
         super(IRControlFrontend, self).__init__()
         self.core = core
         self.configFile = self.generateLircConfigFile(config['IRControl'])
-        logger.debug(self.configFile)
-        logger.debug(core)
+        logger.debug('lircrc file:{0}'.format(self.configFile))
 
     def on_start(self):
-        logger.debug('IRControl starting')
-        self.started = True
-        self.thread = LircThread(self.core)
-        self.thread.start()
-        logger.debug('IRControl started')
+        try:
+            logger.debug('IRControl starting')
+            self.started = True
+            self.thread = LircThread(self.core, self.configFile)
+            self.thread.start()
+            logger.debug('IRControl started')
+        except Exception as e:
+            logger.warning('IRControl has not started')
+            self.stop()
 
     def on_stop(self):
         logger.info('IRControl stopped')
@@ -67,9 +69,9 @@ class IRControlFrontend(pykka.ThreadingActor):
     def generateLircConfigFile(self, config):
         '''Returns file name of generate config file for pylirc'''
         f = tempfile.NamedTemporaryFile(delete=False)
+        skeleton = 'begin\n   prog={2}\n   button={0}\n   config={1}\nend\n'
         for action in config:
-            entry = 'begin\n   prog={2}\n   button={0}\n   config={1}\nend\n'
-            entry.format(config[action], action, LIRC_PROG_NAME)
+            entry = skeleton.format(config[action], action, LIRC_PROG_NAME)
             f.write(entry)
         f.close()
         return f.name
