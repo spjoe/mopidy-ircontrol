@@ -3,6 +3,8 @@ import pylirc
 import logging
 import tempfile
 
+from time import sleep
+
 from mopidy.core import PlaybackState
 from mopidy.utils import process
 
@@ -26,6 +28,7 @@ class LircThread(process.BaseThread):
             while(True):
                 s = pylirc.nextcode(1)
                 self.handleNextCode(s)
+                sleep(0.1)
             pylirc.exit()
 
     def handleNextCode(self, s):
