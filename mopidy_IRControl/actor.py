@@ -14,6 +14,7 @@ LIRC_PROG_NAME = "mopidyIRControl"
 class LircThread(process.BaseThread):
     def __init__(self, core, configFile):
         super(LircThread, self).__init__()
+        self.name = 'Lirc worker thread'
         self.core = core
         self.configFile = configFile
 
@@ -21,7 +22,7 @@ class LircThread(process.BaseThread):
         self.startPyLirc()
 
     def startPyLirc(self):
-        if(pylirc.init(LIRC_PROG_NAME, self.configFile, 1)):
+        if(pylirc.init(LIRC_PROG_NAME, self.configFile, 0)):
             while(True):
                 s = pylirc.nextcode(1)
                 self.handleNextCode(s)
@@ -36,10 +37,10 @@ class LircThread(process.BaseThread):
             state = self.core.playback.state.get()
             if(code['config'] == 'playpause' and
                     state == PlaybackState.PAUSED):
-                self.core.resume().get()
+                self.core.playback.resume().get()
             elif (code['config'] == 'playpause' and
                     state == PlaybackState.PLAYING):
-                self.core.pause().get()
+                self.core.playback.pause().get()
             logger.debug('Command: {0}'.format(code['config']))
 
 
@@ -48,14 +49,16 @@ class IRControlFrontend(pykka.ThreadingActor):
         super(IRControlFrontend, self).__init__()
         self.core = core
         self.configFile = self.generateLircConfigFile(config['IRControl'])
+        self.thread = LircThread(self.core, self.configFile)
         logger.debug('lircrc file:{0}'.format(self.configFile))
+        self.thread.start()
 
     def on_start(self):
         try:
             logger.debug('IRControl starting')
             self.started = True
-            self.thread = LircThread(self.core, self.configFile)
-            self.thread.start()
+#            self.thread = LircThread(self.core, self.configFile)
+#            self.thread.start()
             logger.debug('IRControl started')
         except Exception as e:
             logger.warning('IRControl has not started')
