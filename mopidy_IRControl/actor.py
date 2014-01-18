@@ -58,7 +58,7 @@ class LircThread(process.BaseThread):
 
     def handleNextCode(self, s):
         if s:
-            self.handleLircCommand(s)
+            self.handleLircCode(s)
 
     def handleLircCode(self, s):
         for code in s:
