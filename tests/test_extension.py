@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 
 import unittest
 
-from mopidy_IRControl import Extension, frontend as frontend_lib
+from mopidy_IRControl import Extension, actor as frontend_lib
 
 
 class ExtensionTest(unittest.TestCase):

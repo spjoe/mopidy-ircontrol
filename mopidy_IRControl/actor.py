@@ -52,16 +52,14 @@ class IRControlFrontend(pykka.ThreadingActor):
         super(IRControlFrontend, self).__init__()
         self.core = core
         self.configFile = self.generateLircConfigFile(config['IRControl'])
-        self.thread = LircThread(self.core, self.configFile)
         logger.debug('lircrc file:{0}'.format(self.configFile))
-        self.thread.start()
 
     def on_start(self):
         try:
             logger.debug('IRControl starting')
             self.started = True
-#            self.thread = LircThread(self.core, self.configFile)
-#            self.thread.start()
+            self.thread = LircThread(self.core, self.configFile)
+            self.thread.start()
             logger.debug('IRControl started')
         except Exception as e:
             logger.warning('IRControl has not started')
