@@ -1,32 +1,35 @@
 import pykka
 import pylirc
 import logging
-import thread
 import tempfile
 
-from mopidy.core import CoreListener
-from mopidy.utils import encoding, network, process
+from threading import Thread
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+from mopidy.core import PlaybackState
+from mopidy.utils import process
+
+logger = logging.getLogger('mopidy_IRControl')
 
 LIRC_PROG_NAME = "mopidyIRControl"
 
-class IRControlFrontend(pykka.ThreadingActor, CoreListener):
+class IRControlFrontend(pykka.ThreadingActor):
     def __init__(self, config, core):
         super(IRControlFrontend, self).__init__()
         self.core = core
         self.configFile = self.generateLircConfigFile(config['IRControl'])
-        logger.info(self.configFile)
-        logger.debug('test debug')
+        logger.debug(self.configFile)
+        logger.debug(core)
 
     def on_start(self):
-        logger.info('IRControl started')
+        logger.debug('IRControl starting')
         self.started = True
-        self.startPyLirc()
+        self.thread = process.BaseThread(target = self.startPyLirc, args = ())
+        self.thread.start()
+        logger.debug('IRControl started')
 
     def on_stop(self):
         logger.info('IRControl stopped')
+        self.thread.join(1)
         self.started = False
      
     def generateLircConfigFile(self, config):
@@ -41,9 +44,8 @@ class IRControlFrontend(pykka.ThreadingActor, CoreListener):
     def startPyLirc(self):
         if(pylirc.init(LIRC_PROG_NAME, self.configFile, 1)):
             while(self.started):
-                logger.info('get next code from pylirc')
+                logger.debug('get next code from pylirc')
                 s = pylirc.nextcode(1)
-                logger.info(s)
                 self.handleNextCode(s)
             pylirc.exit()
 
@@ -53,8 +55,9 @@ class IRControlFrontend(pykka.ThreadingActor, CoreListener):
 
     def handleLircCommand(self, s):
         for code in s:
-            if(code['config'] == 'playpause' and self.core.state == self.core.PlaybackState.PAUSED):
+            state = self.core.playback.state.get()
+            if(code['config'] == 'playpause' and state == PlaybackState.PAUSED):
                 self.core.resume()
-            elif (code['config'] == 'playpause' and self.core.state == self.core.PlaybackState.PLAYING):
+            elif (code['config'] == 'playpause' and state == PlaybackState.PLAYING):
                 self.core.pause()
-            logger.info('Command: {0}'.format(code['config']))
+            logger.debug('Command: {0}'.format(code['config']))
