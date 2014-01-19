@@ -63,13 +63,14 @@ class LircThread(process.BaseThread):
         self.core = core
         self.configFile = configFile
         self.dispatcher = CommandDispatcher(core)
+        self.frontendActive = True
 
     def run_inside_try(self):
         self.startPyLirc()
 
     def startPyLirc(self):
         if(pylirc.init(LIRC_PROG_NAME, self.configFile, 0)):
-            while(True):
+            while(self.frontendActive):
                 s = pylirc.nextcode(1)
                 self.handleNextCode(s)
                 sleep(0.1)
@@ -98,7 +99,6 @@ class IRControlFrontend(pykka.ThreadingActor):
     def on_start(self):
         try:
             logger.debug('IRControl starting')
-            self.started = True
             self.thread = LircThread(self.core, self.configFile)
             self.thread.start()
             logger.debug('IRControl started')
@@ -108,8 +108,13 @@ class IRControlFrontend(pykka.ThreadingActor):
 
     def on_stop(self):
         logger.info('IRControl stopped')
-        self.thread.join(1)
-        self.started = False
+        self.thread.frontenActive = False
+        self.thread.join()
+
+    def on_failure(self):
+        logger.warning('IRControl failing')
+        self.thread.frontenActive = False
+        self.thread.join()
 
     def generateLircConfigFile(self, config):
         '''Returns file name of generate config file for pylirc'''
