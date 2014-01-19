@@ -18,23 +18,43 @@ class CommandDispatcher(object):
         self.core = core
         self._handlers = {}
         self.registerHandler('playpause', self._playpauseHandler)
+        self.registerHandler('mute', self._muteHandler)
+        self.registerHandler('stop', lambda: self.core.playback.stop().get())
+        self.registerHandler('next', lambda: self.core.playback.next().get())
+        self.registerHandler('previous',
+                             lambda: self.core.playback.previous().get())
+        self.registerHandler('volumedown',
+                             self._volumeFunction(lambda vol: vol - 5))
+        self.registerHandler('volumeup',
+                             self._volumeFunction(lambda vol: vol + 5))
 
     def handleCommand(self, cmd):
         handler = self._handlers[cmd]
         if handler:
-            handler(self.core)
+            handler()
+        else:
+            logger.info("Command {0} was not handled".format(cmd))
 
     def registerHandler(self, cmd, handler):
         self._handlers[cmd] = handler
 
-    def _playpauseHandler(self, core):
-        state = core.playback.state.get()
+    def _playpauseHandler(self):
+        state = self.core.playback.state.get()
         if(state == PlaybackState.PAUSED):
-            core.playback.resume().get()
+            self.core.playback.resume().get()
         elif (state == PlaybackState.PLAYING):
-            core.playback.pause().get()
+            self.core.playback.pause().get()
         elif (state == PlaybackState.STOPPED):
-            core.playback.play().get()
+            self.core.playback.play().get()
+
+    def _muteHandler(self):
+        self.core.playback.mute = not self.core.playback.mute.get()
+
+    def _volumeFunction(self, changeFct):
+        def volumeChange():
+            vol = self.core.playback.volume.get()
+            self.core.playback.volume = min(max(0, changeFct(vol)), 100)
+        return volumeChange
 
 
 class LircThread(process.BaseThread):
