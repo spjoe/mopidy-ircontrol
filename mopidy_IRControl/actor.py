@@ -29,9 +29,8 @@ class CommandDispatcher(object):
                              self._volumeFunction(lambda vol: vol + 5))
 
     def handleCommand(self, cmd):
-        handler = self._handlers[cmd]
-        if handler:
-            handler()
+        if cmd in self._handlers[cmd]:
+            self._handlers[cmd]()
         else:
             logger.info("Command {0} was not handled".format(cmd))
 
