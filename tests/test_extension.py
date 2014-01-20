@@ -6,25 +6,13 @@ from mopidy_IRControl import Extension, actor as lib
 
 
 class ExtensionTest(unittest.TestCase):
-    @classmethod
-    def setup_class(self): 
-        IRconfig = {}
-        IRconfig['next'] = 'KEY_NEXT'
-        IRconfig['previous'] = 'KEY_PREVIOUS'
-        IRconfig['playpause'] = 'KEY_PLAYPAUSE'
-        IRconfig['stop'] = 'KEY_STOP'
-        IRconfig['volumeup'] = 'KEY_VOLUMEUP'
-        IRconfig['volumedown'] = 'KEY_VOLUMEDOWN'
-        IRconfig['enabled'] = True
-        self.config = {'IRControl' : IRconfig}
-
     def test_get_default_config(self):
         ext = Extension()
 
         config = ext.get_default_config()
 
         self.assertIn('[IRControl]', config)
-        self.assertIn('enabled = true', config)
+        self.assertIn('enabled = true', config)    
 
     def test_get_config_schema(self):
         ext = Extension()
@@ -38,12 +26,46 @@ class ExtensionTest(unittest.TestCase):
         self.assertIn('volumedown', schema)
         self.assertIn('volumeup', schema)
         
+    def test_frontend_classes(self):
+        ext = Extension()
+        frontend_classes = ext.get_frontend_classes()
+        self.assertIn(lib.IRControlFrontend, frontend_classes)
+
+class FrontendTest(unittest.TestCase):
+    @classmethod
+    def setup_class(self): 
+        IRconfig = {}
+        IRconfig['next'] = 'KEY_NEXT'
+        IRconfig['previous'] = 'KEY_PREVIOUS'
+        IRconfig['playpause'] = 'KEY_PLAYPAUSE'
+        IRconfig['stop'] = 'KEY_STOP'
+        IRconfig['volumeup'] = 'KEY_VOLUMEUP'
+        IRconfig['volumedown'] = 'KEY_VOLUMEDOWN'
+        IRconfig['enabled'] = True
+        self.config = {'IRControl' : IRconfig}
+        
     def test_on_start_should_spawn_thread(self):
         ext = Extension()
 
         actor = lib.IRControlFrontend(self.config, None)
         actor.on_start()
         assert actor.thread != None
+    
+    def test_on_stop(self):
+        actor = lib.IRControlFrontend(self.config, None)
+        actor.on_start()
+        assert actor.thread.isAlive()
+        
+        actor.on_stop()
+        assert not actor.thread.isAlive()
+
+    def test_on_failure(self):
+        actor = lib.IRControlFrontend(self.config, None)
+        actor.on_start()
+        assert actor.thread.isAlive()
+        
+        actor.on_failure()
+        assert not actor.thread.isAlive()
 
 
 class CommandDispatcherTest(unittest.TestCase):
