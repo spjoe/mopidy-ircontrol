@@ -1,7 +1,10 @@
 from __future__ import unicode_literals
 
 import unittest
+import mopidy
+import pylirc
 
+from mock import Mock, patch
 from mopidy_IRControl import Extension, actor as lib
 
 
@@ -66,13 +69,30 @@ class FrontendTest(unittest.TestCase):
         actor.on_failure()
         assert not actor.thread.isAlive()
 
+    @patch('mopidy_IRControl.actor.logger')
+    def test_on_start_log_exception(self, mock_logger):
+        actor = lib.IRControlFrontend(self.config, None)
+        with patch('mopidy_IRControl.actor.LircThread.start') as MockMethod:
+            MockMethod.side_effect = Exception('Boom!')
+            actor.on_start()
+            self.assertTrue(mock_logger.warning.called)
+
 
 class CommandDispatcherTest(unittest.TestCase):
-    def setup(self):
-        print(__name__, ': TestClass.setup()  - - - - - - - -')
+    class WithGet:
+            def __init__(self, value):
+                self.value = value
 
-    def teardown(self):
-        print(__name__, ': TestClass.teardown() - - - - - - -')
+            def get(self):
+                return self.value
+
+    def setUp(self):
+        self.coreMock = mopidy.core.Core(None, [])
+        playback = Mock()
+        playback.mute = self.WithGet(False)
+        playback.volume = self.WithGet(50)
+        playback.state = self.WithGet(mopidy.core.PlaybackState.STOPPED)
+        self.coreMock.playback = playback
 
     def commandXYZHandler(self):
         self.executed = True
@@ -80,7 +100,6 @@ class CommandDispatcherTest(unittest.TestCase):
     def test_registerHandler(self):
         self.executed = False
         dispatcher = lib.CommandDispatcher(None)
-
         dispatcher.registerHandler('commandXYZ', self.commandXYZHandler)
         dispatcher.handleCommand('commandXYZ')
         assert self.executed
@@ -101,10 +120,73 @@ class CommandDispatcherTest(unittest.TestCase):
         self.assertIn('volumedown', dispatcher._handlers)
         self.assertIn('volumeup', dispatcher._handlers)
 
+    def test_stop_handler(self):
+        dispatcher = lib.CommandDispatcher(self.coreMock)
+        dispatcher.handleCommand('stop')
+        self.coreMock.playback.stop.assert_called_with()
+
+    def test_mute_handler(self):
+        dispatcher = lib.CommandDispatcher(self.coreMock)
+        dispatcher.handleCommand('mute')
+        assert self.coreMock.playback.mute
+
+    def test_next_handler(self):
+        dispatcher = lib.CommandDispatcher(self.coreMock)
+        dispatcher.handleCommand('next')
+        self.coreMock.playback.next.assert_called_with()
+
+    def test_previous_handler(self):
+        dispatcher = lib.CommandDispatcher(self.coreMock)
+        dispatcher.handleCommand('previous')
+        self.coreMock.playback.previous.assert_called_with()
+
+    def test_playpause_handler(self):
+        dispatcher = lib.CommandDispatcher(self.coreMock)
+        dispatcher.handleCommand('playpause')
+        self.coreMock.playback.play.assert_called_with()
+
+        self.coreMock.playback.state = \
+            self.WithGet(mopidy.core.PlaybackState.PAUSED)
+        dispatcher.handleCommand('playpause')
+        self.coreMock.playback.resume.assert_called_with()
+
+        self.coreMock.playback.state = \
+            self.WithGet(mopidy.core.PlaybackState.PLAYING)
+        dispatcher.handleCommand('playpause')
+        self.coreMock.playback.pause.assert_called_with()
+
+    def test_volumedown_handler(self):
+        dispatcher = lib.CommandDispatcher(self.coreMock)
+        dispatcher.handleCommand('volumedown')
+        assert self.coreMock.playback.volume == 45
+
+    def test_volumeup_handler(self):
+        dispatcher = lib.CommandDispatcher(self.coreMock)
+        dispatcher.handleCommand('volumeup')
+        assert self.coreMock.playback.volume == 55
+
 
 class LircThreadTest(unittest.TestCase):
-    def setup(self):
-        pass
+    def setUp(self):
+        pylirc.init = Mock(return_value=True)
+        pylirc.nextcode = Mock(return_value=[])
+        pylirc.exit = Mock(return_value=True)
 
-    def test_run(self):
-        pass
+    def test_startPyLirc(self):
+        thread = lib.LircThread(None, None)
+        thread.start()
+        thread.frontendActive = False
+        thread.join()
+
+        pylirc.init.assert_called_with('mopidyIRControl', None, 0)
+
+    @patch('mopidy_IRControl.actor.logger')
+    def test_handleCommand(self, mock_logger):
+        pylirc.nextcode = Mock(return_value=[{'config': 'commandXYZ'}])
+
+        thread = lib.LircThread(None, None)
+        thread.start()
+        thread.frontendActive = False
+        thread.join()
+
+        assert mock_logger.debug.called
