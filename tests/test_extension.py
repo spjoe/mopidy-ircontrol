@@ -30,11 +30,6 @@ class ExtensionTest(unittest.TestCase):
         self.assertIn('volumedown', schema)
         self.assertIn('volumeup', schema)
 
-    def test_frontend_classes(self):
-        ext = Extension()
-        frontend_classes = ext.get_frontend_classes()
-        self.assertIn(lib.IRControlFrontend, frontend_classes)
-
 
 class FrontendTest(unittest.TestCase):
     @classmethod

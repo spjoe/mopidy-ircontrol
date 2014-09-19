@@ -50,12 +50,9 @@ class Extension(ext.Extension):
         schema['num9'] = config.String()
         return schema
 
-    # You will typically only implement a couple of the next methods
-    # in a single extension.
-
-    def get_frontend_classes(self):
+    def setup(self, registry):
         from .actor import IRControlFrontend
-        return [IRControlFrontend]
+        registry.add('frontend', IRControlFrontend)
 
     # TODO: Comment in and edit, or remove entirely
     #def get_backend_classes(self):
