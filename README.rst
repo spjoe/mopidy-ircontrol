@@ -10,15 +10,16 @@ Mopidy-IRControl
     :target: https://pypi.python.org/pypi/Mopidy-IRControl/
     :alt: Number of PyPI downloads
 
-.. image:: https://travis-ci.org/spjoe/mopidy-IRControl.png?branch=master
-    :target: https://travis-ci.org/spjoe/mopidy-IRControl
+.. image:: https://api.travis-ci.org/spjoe/mopidy-ircontrol.png?branch=master
+    :target: https://travis-ci.org/spjoe/mopidy-ircontrol
     :alt: Travis CI build status
 
-.. image:: https://coveralls.io/repos/spjoe/mopidy-IRControl/badge.png?branch=master
-   :target: https://coveralls.io/r/spjoe/mopidy-IRControl?branch=master
+.. image:: https://coveralls.io/repos/spjoe/mopidy-ircontrol/badge.png?branch=master
+   :target: https://coveralls.io/r/spjoe/mopidy-ircontrol?branch=master
    :alt: Test coverage
 
-Mopidy frontend to be controlled with an IR controller
+
+A Mopidy frontend to control mopidy with an infrared remote control. It is using lirc<http://www.lirc.org/> as IR receiver deamon.
 
 
 Installation
@@ -39,8 +40,15 @@ Before starting Mopidy, you must add configuration for
 Mopidy-IRControl to your Mopidy configuration file::
 
     [IRControl]
-    # TODO: Add example of extension config
-
+    enabled = true
+    #look at your lircd.conf (/etc/lirc/lircd.conf) to find you configured buttons names
+    mute = KEY_MUTE
+    next = KEY_NEXT
+    previous = KEY_PREVIOUS
+    playpause = KEY_PLAYPAUSE
+    stop = KEY_STOP
+    volumeup = KEY_VOLUMEUP
+    volumedown = KEY_VOLUMEDOWN
 
 Project resources
 =================

@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import unittest
 import mopidy
 import pylirc
+import time
 
 from mock import Mock, patch
 from mopidy_IRControl import Extension, actor as lib
@@ -56,15 +57,12 @@ class FrontendTest(unittest.TestCase):
     def test_on_stop(self):
         actor = lib.IRControlFrontend(self.config, None)
         actor.on_start()
-        assert actor.thread.isAlive()
-
         actor.on_stop()
         assert not actor.thread.isAlive()
 
     def test_on_failure(self):
         actor = lib.IRControlFrontend(self.config, None)
         actor.on_start()
-        assert actor.thread.isAlive()
 
         actor.on_failure()
         assert not actor.thread.isAlive()
@@ -186,6 +184,7 @@ class LircThreadTest(unittest.TestCase):
 
         thread = lib.LircThread(None, None)
         thread.start()
+        time.sleep(0.1)
         thread.frontendActive = False
         thread.join()
 
