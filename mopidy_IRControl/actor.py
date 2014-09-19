@@ -108,12 +108,12 @@ class IRControlFrontend(pykka.ThreadingActor):
 
     def on_stop(self):
         logger.info('IRControl stopped')
-        self.thread.frontenActive = False
+        self.thread.frontendActive = False
         self.thread.join()
 
     def on_failure(self):
         logger.warning('IRControl failing')
-        self.thread.frontenActive = False
+        self.thread.frontendActive = False
         self.thread.join()
 
     def generateLircConfigFile(self, config):
