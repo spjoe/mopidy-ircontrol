@@ -81,6 +81,7 @@ class CommandDispatcherTest(unittest.TestCase):
 
     def setUp(self):
         self.coreMock = mopidy.core.Core(None, [])
+        self.buttonPressEvent = lib.Event()
         playback = Mock()
         playback.mute = self.WithGet(False)
         playback.volume = self.WithGet(50)
@@ -92,19 +93,19 @@ class CommandDispatcherTest(unittest.TestCase):
 
     def test_registerHandler(self):
         self.executed = False
-        dispatcher = lib.CommandDispatcher(None)
+        dispatcher = lib.CommandDispatcher(None, self.buttonPressEvent)
         dispatcher.registerHandler('commandXYZ', self.commandXYZHandler)
         dispatcher.handleCommand('commandXYZ')
         assert self.executed
 
     def test_handleCommand(self):
         self.executed = False
-        dispatcher = lib.CommandDispatcher(None)
+        dispatcher = lib.CommandDispatcher(None, self.buttonPressEvent)
         dispatcher.handleCommand('commandXYZ')
         assert not self.executed
 
     def test_default_registered_handler(self):
-        dispatcher = lib.CommandDispatcher(None)
+        dispatcher = lib.CommandDispatcher(None, self.buttonPressEvent)
         self.assertIn('mute', dispatcher._handlers)
         self.assertIn('playpause', dispatcher._handlers)
         self.assertIn('next', dispatcher._handlers)
@@ -114,27 +115,27 @@ class CommandDispatcherTest(unittest.TestCase):
         self.assertIn('volumeup', dispatcher._handlers)
 
     def test_stop_handler(self):
-        dispatcher = lib.CommandDispatcher(self.coreMock)
+        dispatcher = lib.CommandDispatcher(self.coreMock, self.buttonPressEvent)
         dispatcher.handleCommand('stop')
         self.coreMock.playback.stop.assert_called_with()
 
     def test_mute_handler(self):
-        dispatcher = lib.CommandDispatcher(self.coreMock)
+        dispatcher = lib.CommandDispatcher(self.coreMock, self.buttonPressEvent)
         dispatcher.handleCommand('mute')
         assert self.coreMock.playback.mute
 
     def test_next_handler(self):
-        dispatcher = lib.CommandDispatcher(self.coreMock)
+        dispatcher = lib.CommandDispatcher(self.coreMock, self.buttonPressEvent)
         dispatcher.handleCommand('next')
         self.coreMock.playback.next.assert_called_with()
 
     def test_previous_handler(self):
-        dispatcher = lib.CommandDispatcher(self.coreMock)
+        dispatcher = lib.CommandDispatcher(self.coreMock, self.buttonPressEvent)
         dispatcher.handleCommand('previous')
         self.coreMock.playback.previous.assert_called_with()
 
     def test_playpause_handler(self):
-        dispatcher = lib.CommandDispatcher(self.coreMock)
+        dispatcher = lib.CommandDispatcher(self.coreMock, self.buttonPressEvent)
         dispatcher.handleCommand('playpause')
         self.coreMock.playback.play.assert_called_with()
 
@@ -149,12 +150,12 @@ class CommandDispatcherTest(unittest.TestCase):
         self.coreMock.playback.pause.assert_called_with()
 
     def test_volumedown_handler(self):
-        dispatcher = lib.CommandDispatcher(self.coreMock)
+        dispatcher = lib.CommandDispatcher(self.coreMock, self.buttonPressEvent)
         dispatcher.handleCommand('volumedown')
         assert self.coreMock.playback.volume == 45
 
     def test_volumeup_handler(self):
-        dispatcher = lib.CommandDispatcher(self.coreMock)
+        dispatcher = lib.CommandDispatcher(self.coreMock, self.buttonPressEvent)
         dispatcher.handleCommand('volumeup')
         assert self.coreMock.playback.volume == 55
 
@@ -166,7 +167,7 @@ class LircThreadTest(unittest.TestCase):
         pylirc.exit = Mock(return_value=True)
 
     def test_startPyLirc(self):
-        thread = lib.LircThread(None, None)
+        thread = lib.LircThread(None)
         thread.start()
         thread.frontendActive = False
         thread.join()
@@ -177,7 +178,7 @@ class LircThreadTest(unittest.TestCase):
     def test_handleCommand(self, mock_logger):
         pylirc.nextcode = Mock(return_value=[{'config': 'commandXYZ'}])
 
-        thread = lib.LircThread(None, None)
+        thread = lib.LircThread(None)
         thread.start()
         time.sleep(0.1)
         thread.frontendActive = False

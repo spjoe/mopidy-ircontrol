@@ -38,7 +38,7 @@ class CommandDispatcher(object):
                              self._volumeFunction(lambda vol: vol - 5))
         self.registerHandler('volumeup',
                              self._volumeFunction(lambda vol: vol + 5))
-        buttonPressEvent.append(self.dispatcher.handleCommand)                
+        buttonPressEvent.append(self.handleCommand)                
           
     def handleCommand(self, cmd):
         if cmd in self._handlers:
@@ -75,6 +75,7 @@ class LircThread(process.BaseThread):
         self.name = 'Lirc worker thread'
         self.configFile = configFile        
         self.frontendActive = True
+        self.ButtonPressed = Event()
 
     def run_inside_try(self):
         self.startPyLirc()
@@ -111,12 +112,12 @@ class IRControlFrontend(pykka.ThreadingActor, CoreListener):
         try:
             logger.debug('IRControl starting')
             self.thread = LircThread(self.configFile)
-            self.dispatcher = CommandDispatcher(self.core, thread.ButtonPressed)
-            self.thread.ButtonPressed.append(handleButtonPress)
+            self.dispatcher = CommandDispatcher(self.core, self.thread.ButtonPressed)
+            self.thread.ButtonPressed.append(self.handleButtonPress)
             self.thread.start()
             logger.debug('IRControl started')
-        except Exception:
-            logger.warning('IRControl has not started')
+        except Exception as e:
+            logger.warning('IRControl has not started: ' + str(e))
             self.stop()
 
     def on_stop(self):
