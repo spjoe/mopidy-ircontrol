@@ -7,14 +7,25 @@ from time import sleep
 
 from mopidy.core import PlaybackState
 from mopidy.utils import process
+from mopidy.core import CoreListener
 
 logger = logging.getLogger('mopidy_IRControl')
 
 LIRC_PROG_NAME = "mopidyIRControl"
+class Event(list):
+    """Event subscription.
 
+    A list of callable objects. Calling an instance of this will cause a
+    call to each item in the list in ascending order by index."""
+    def __call__(self, *args, **kwargs):
+        for f in self:
+            f(*args, **kwargs)
+
+    def __repr__(self):
+        return "Event(%s)" % list.__repr__(self)
 
 class CommandDispatcher(object):
-    def __init__(self, core):
+    def __init__(self, core, buttonPressEvent):
         self.core = core
         self._handlers = {}
         self.registerHandler('playpause', self._playpauseHandler)
@@ -27,12 +38,14 @@ class CommandDispatcher(object):
                              self._volumeFunction(lambda vol: vol - 5))
         self.registerHandler('volumeup',
                              self._volumeFunction(lambda vol: vol + 5))
-
+        buttonPressEvent.append(self.dispatcher.handleCommand)                
+          
     def handleCommand(self, cmd):
         if cmd in self._handlers:
             self._handlers[cmd]()
         else:
             logger.info("Command {0} was not handled".format(cmd))
+
 
     def registerHandler(self, cmd, handler):
         self._handlers[cmd] = handler
@@ -57,12 +70,10 @@ class CommandDispatcher(object):
 
 
 class LircThread(process.BaseThread):
-    def __init__(self, core, configFile):
+    def __init__(self, configFile):
         super(LircThread, self).__init__()
         self.name = 'Lirc worker thread'
-        self.core = core
-        self.configFile = configFile
-        self.dispatcher = CommandDispatcher(core)
+        self.configFile = configFile        
         self.frontendActive = True
 
     def run_inside_try(self):
@@ -86,10 +97,10 @@ class LircThread(process.BaseThread):
 
     def handleCommand(self, cmd):
         logger.debug('Command: {0}'.format(cmd))
-        self.dispatcher.handleCommand(cmd)
+        self.ButtonPressed(cmd)
 
 
-class IRControlFrontend(pykka.ThreadingActor):
+class IRControlFrontend(pykka.ThreadingActor, CoreListener):
     def __init__(self, config, core):
         super(IRControlFrontend, self).__init__()
         self.core = core
@@ -99,7 +110,9 @@ class IRControlFrontend(pykka.ThreadingActor):
     def on_start(self):
         try:
             logger.debug('IRControl starting')
-            self.thread = LircThread(self.core, self.configFile)
+            self.thread = LircThread(self.configFile)
+            self.dispatcher = CommandDispatcher(self.core, thread.ButtonPressed)
+            self.thread.ButtonPressed.append(handleButtonPress)
             self.thread.start()
             logger.debug('IRControl started')
         except Exception:
@@ -115,6 +128,9 @@ class IRControlFrontend(pykka.ThreadingActor):
         logger.warning('IRControl failing')
         self.thread.frontendActive = False
         self.thread.join()
+        
+    def handleButtonPress(self, button):
+        self.send("IRButtonPressed", button)
 
     def generateLircConfigFile(self, config):
         '''Returns file name of generate config file for pylirc'''
