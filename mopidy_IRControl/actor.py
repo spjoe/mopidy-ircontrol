@@ -12,6 +12,8 @@ from mopidy.core import CoreListener
 logger = logging.getLogger('mopidy_IRControl')
 
 LIRC_PROG_NAME = "mopidyIRControl"
+
+
 class Event(list):
     """Event subscription.
 
@@ -23,6 +25,7 @@ class Event(list):
 
     def __repr__(self):
         return "Event(%s)" % list.__repr__(self)
+
 
 class CommandDispatcher(object):
     def __init__(self, core, buttonPressEvent):
@@ -38,14 +41,14 @@ class CommandDispatcher(object):
                              self._volumeFunction(lambda vol: vol - 5))
         self.registerHandler('volumeup',
                              self._volumeFunction(lambda vol: vol + 5))
-        buttonPressEvent.append(self.handleCommand)                
-          
+        buttonPressEvent.append(self.handleCommand)
+
     def handleCommand(self, cmd):
         if cmd in self._handlers:
+            logger.debug("Command {0} was handled".format(cmd))
             self._handlers[cmd]()
         else:
-            logger.info("Command {0} was not handled".format(cmd))
-
+            logger.debug("Command {0} was not handled".format(cmd))
 
     def registerHandler(self, cmd, handler):
         self._handlers[cmd] = handler
@@ -73,7 +76,7 @@ class LircThread(process.BaseThread):
     def __init__(self, configFile):
         super(LircThread, self).__init__()
         self.name = 'Lirc worker thread'
-        self.configFile = configFile        
+        self.configFile = configFile
         self.frontendActive = True
         self.ButtonPressed = Event()
 
@@ -112,7 +115,9 @@ class IRControlFrontend(pykka.ThreadingActor, CoreListener):
         try:
             logger.debug('IRControl starting')
             self.thread = LircThread(self.configFile)
-            self.dispatcher = CommandDispatcher(self.core, self.thread.ButtonPressed)
+            self.dispatcher = CommandDispatcher(
+                self.core,
+                self.thread.ButtonPressed)
             self.thread.ButtonPressed.append(self.handleButtonPress)
             self.thread.start()
             logger.debug('IRControl started')
@@ -129,9 +134,9 @@ class IRControlFrontend(pykka.ThreadingActor, CoreListener):
         logger.warning('IRControl failing')
         self.thread.frontendActive = False
         self.thread.join()
-        
-    def handleButtonPress(self, button):
-        self.send("IRButtonPressed", button)
+
+    def handleButtonPress(self, cmd):
+        CoreListener.send("IRButtonPressed", button=cmd)
 
     def generateLircConfigFile(self, config):
         '''Returns file name of generate config file for pylirc'''
