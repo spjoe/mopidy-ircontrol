@@ -4,7 +4,7 @@ install:
   - "wget -O - http://apt.mopidy.com/mopidy.gpg | sudo apt-key add -"
   - "sudo wget -O /etc/apt/sources.list.d/mopidy.list http://apt.mopidy.com/mopidy.list"
   - "sudo apt-get update || true"
-  - "sudo apt-get install mopidy liblircclient-dev python-gobject-2-dbg python-gst0.10-dev python-gst0.10-dbg gnome-keyring"
+  - "sudo apt-get install mopidy liblircclient-dev python-gobject-2-dbg python-gst0.10-dev python-gst0.10-dbg gnome-keyring python-gst0.10 gstreamer0.10-plugins-good gstreamer0.10-plugins-ugly"
   - "pip install pylirc2 coveralls flake8 mopidy"
 
 before_script:
