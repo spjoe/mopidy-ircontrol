@@ -1,14 +1,6 @@
 from __future__ import unicode_literals
 
 import os
-
-# TODO: Comment in if you need to register GStreamer elements below, else
-# remove entirely
-#import pygst
-#pygst.require('0.10')
-#import gst
-#import gobject
-
 from mopidy import config, ext
 
 
@@ -53,20 +45,3 @@ class Extension(ext.Extension):
     def setup(self, registry):
         from .actor import IRControlFrontend
         registry.add('frontend', IRControlFrontend)
-
-    # TODO: Comment in and edit, or remove entirely
-    #def get_backend_classes(self):
-    #    from .backend import FoobarBackend
-    #    return [FoobarBackend]
-
-    # TODO: Comment in and edit, or remove entirely.
-    #def get_command(self):
-    #    from .commands import FoobarCommand
-    #    return FoobarCommand()
-
-    # TODO: Comment in and edit, or remove entirely
-    #def register_gstreamer_elements(self):
-    #    from .mixer import FoobarMixer
-    #    gobject.type_register(FoobarMixer)
-    #    gst.element_register(
-    #        FoobarMixer, 'foobarmixer', gst.RANK_MARGINAL)

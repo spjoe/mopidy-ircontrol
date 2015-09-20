@@ -115,27 +115,32 @@ class CommandDispatcherTest(unittest.TestCase):
         self.assertIn('volumeup', dispatcher._handlers)
 
     def test_stop_handler(self):
-        dispatcher = lib.CommandDispatcher(self.coreMock, self.buttonPressEvent)
+        dispatcher = lib.CommandDispatcher(self.coreMock,
+                                           self.buttonPressEvent)
         dispatcher.handleCommand('stop')
         self.coreMock.playback.stop.assert_called_with()
 
     def test_mute_handler(self):
-        dispatcher = lib.CommandDispatcher(self.coreMock, self.buttonPressEvent)
+        dispatcher = lib.CommandDispatcher(self.coreMock,
+                                           self.buttonPressEvent)
         dispatcher.handleCommand('mute')
         assert self.coreMock.playback.mute
 
     def test_next_handler(self):
-        dispatcher = lib.CommandDispatcher(self.coreMock, self.buttonPressEvent)
+        dispatcher = lib.CommandDispatcher(self.coreMock,
+                                           self.buttonPressEvent)
         dispatcher.handleCommand('next')
         self.coreMock.playback.next.assert_called_with()
 
     def test_previous_handler(self):
-        dispatcher = lib.CommandDispatcher(self.coreMock, self.buttonPressEvent)
+        dispatcher = lib.CommandDispatcher(self.coreMock,
+                                           self.buttonPressEvent)
         dispatcher.handleCommand('previous')
         self.coreMock.playback.previous.assert_called_with()
 
     def test_playpause_handler(self):
-        dispatcher = lib.CommandDispatcher(self.coreMock, self.buttonPressEvent)
+        dispatcher = lib.CommandDispatcher(self.coreMock,
+                                           self.buttonPressEvent)
         dispatcher.handleCommand('playpause')
         self.coreMock.playback.play.assert_called_with()
 
@@ -150,12 +155,14 @@ class CommandDispatcherTest(unittest.TestCase):
         self.coreMock.playback.pause.assert_called_with()
 
     def test_volumedown_handler(self):
-        dispatcher = lib.CommandDispatcher(self.coreMock, self.buttonPressEvent)
+        dispatcher = lib.CommandDispatcher(self.coreMock,
+                                           self.buttonPressEvent)
         dispatcher.handleCommand('volumedown')
         assert self.coreMock.playback.volume == 45
 
     def test_volumeup_handler(self):
-        dispatcher = lib.CommandDispatcher(self.coreMock, self.buttonPressEvent)
+        dispatcher = lib.CommandDispatcher(self.coreMock,
+                                           self.buttonPressEvent)
         dispatcher.handleCommand('volumeup')
         assert self.coreMock.playback.volume == 55
 
