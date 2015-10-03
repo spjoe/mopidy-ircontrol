@@ -2,11 +2,11 @@ import pykka
 import pylirc
 import logging
 import tempfile
+import threading
 
 from time import sleep
 
 from mopidy.core import PlaybackState
-from mopidy.utils import process
 from mopidy.core import CoreListener
 
 logger = logging.getLogger('mopidy_IRControl')
@@ -72,13 +72,20 @@ class CommandDispatcher(object):
         return volumeChange
 
 
-class LircThread(process.BaseThread):
+class LircThread(threading.Thread):
     def __init__(self, configFile):
-        super(LircThread, self).__init__()
+        threading.Thread.__init__(self) 
         self.name = 'Lirc worker thread'
         self.configFile = configFile
         self.frontendActive = True
         self.ButtonPressed = Event()
+        
+    def run(self):
+        try:
+            self.run_inside_try()
+        except Exception as e:
+            logger.warning('IRControl has problems starting pylirc: ' + str(e))
+            
 
     def run_inside_try(self):
         self.startPyLirc()

@@ -7,6 +7,7 @@ import time
 
 from mock import Mock, patch
 from mopidy_IRControl import Extension, actor as lib
+from nose.tools import nottest
 
 
 class ExtensionTest(unittest.TestCase):
@@ -30,7 +31,6 @@ class ExtensionTest(unittest.TestCase):
         self.assertIn('volumedown', schema)
         self.assertIn('volumeup', schema)
 
-
 class FrontendTest(unittest.TestCase):
     @classmethod
     def setup_class(self):
@@ -48,7 +48,8 @@ class FrontendTest(unittest.TestCase):
         actor = lib.IRControlFrontend(self.config, None)
         actor.on_start()
         assert actor.thread is not None
-
+        actor.on_stop()
+    
     def test_on_stop(self):
         actor = lib.IRControlFrontend(self.config, None)
         actor.on_start()
@@ -70,7 +71,6 @@ class FrontendTest(unittest.TestCase):
             actor.on_start()
             self.assertTrue(mock_logger.warning.called)
 
-
 class CommandDispatcherTest(unittest.TestCase):
     class WithGet:
             def __init__(self, value):
@@ -80,7 +80,7 @@ class CommandDispatcherTest(unittest.TestCase):
                 return self.value
 
     def setUp(self):
-        self.coreMock = mopidy.core.Core(None, [])
+        self.coreMock = mopidy.core.Core(None, None, [], None)
         self.buttonPressEvent = lib.Event()
         playback = Mock()
         playback.mute = self.WithGet(False)
