@@ -5,9 +5,8 @@ import mopidy
 import pylirc
 import time
 
-from mock import Mock, patch
+from mock import Mock, patch, MagicMock
 from mopidy_IRControl import Extension, actor as lib
-from nose.tools import nottest
 
 
 class ExtensionTest(unittest.TestCase):
@@ -31,6 +30,7 @@ class ExtensionTest(unittest.TestCase):
         self.assertIn('volumedown', schema)
         self.assertIn('volumeup', schema)
 
+
 class FrontendTest(unittest.TestCase):
     @classmethod
     def setup_class(self):
@@ -49,7 +49,7 @@ class FrontendTest(unittest.TestCase):
         actor.on_start()
         assert actor.thread is not None
         actor.on_stop()
-    
+
     def test_on_stop(self):
         actor = lib.IRControlFrontend(self.config, None)
         actor.on_start()
@@ -71,6 +71,7 @@ class FrontendTest(unittest.TestCase):
             actor.on_start()
             self.assertTrue(mock_logger.warning.called)
 
+
 class CommandDispatcherTest(unittest.TestCase):
     class WithGet:
             def __init__(self, value):
@@ -79,14 +80,23 @@ class CommandDispatcherTest(unittest.TestCase):
             def get(self):
                 return self.value
 
+            def __call__(self):
+                return self
+
     def setUp(self):
         self.coreMock = mopidy.core.Core(None, None, [], None)
         self.buttonPressEvent = lib.Event()
         playback = Mock()
-        playback.mute = self.WithGet(False)
-        playback.volume = self.WithGet(50)
-        playback.state = self.WithGet(mopidy.core.PlaybackState.STOPPED)
+        playback.get_state = self.WithGet(mopidy.core.PlaybackState.STOPPED)
+
+        mixer = Mock()
+        mixer.get_mute = self.WithGet(False)
+        mixer.get_volume = self.WithGet(50)
+        mixer.set_mute = MagicMock()
+        mixer.set_volume = MagicMock()
+
         self.coreMock.playback = playback
+        self.coreMock.mixer = mixer
 
     def commandXYZHandler(self):
         self.executed = True
@@ -124,7 +134,7 @@ class CommandDispatcherTest(unittest.TestCase):
         dispatcher = lib.CommandDispatcher(self.coreMock,
                                            self.buttonPressEvent)
         dispatcher.handleCommand('mute')
-        assert self.coreMock.playback.mute
+        self.coreMock.mixer.set_mute.assert_called_with(True)
 
     def test_next_handler(self):
         dispatcher = lib.CommandDispatcher(self.coreMock,
@@ -138,19 +148,27 @@ class CommandDispatcherTest(unittest.TestCase):
         dispatcher.handleCommand('previous')
         self.coreMock.playback.previous.assert_called_with()
 
-    def test_playpause_handler(self):
+    def test_playpause_play_handler(self):
         dispatcher = lib.CommandDispatcher(self.coreMock,
                                            self.buttonPressEvent)
         dispatcher.handleCommand('playpause')
         self.coreMock.playback.play.assert_called_with()
 
-        self.coreMock.playback.state = \
+    def test_playpause_resume_handler(self):
+        dispatcher = lib.CommandDispatcher(self.coreMock,
+                                           self.buttonPressEvent)
+        self.coreMock.playback.get_state = \
             self.WithGet(mopidy.core.PlaybackState.PAUSED)
+
         dispatcher.handleCommand('playpause')
         self.coreMock.playback.resume.assert_called_with()
 
-        self.coreMock.playback.state = \
+    def test_playpause_pause_handler(self):
+        dispatcher = lib.CommandDispatcher(self.coreMock,
+                                           self.buttonPressEvent)
+        self.coreMock.playback.get_state = \
             self.WithGet(mopidy.core.PlaybackState.PLAYING)
+
         dispatcher.handleCommand('playpause')
         self.coreMock.playback.pause.assert_called_with()
 
@@ -158,13 +176,13 @@ class CommandDispatcherTest(unittest.TestCase):
         dispatcher = lib.CommandDispatcher(self.coreMock,
                                            self.buttonPressEvent)
         dispatcher.handleCommand('volumedown')
-        assert self.coreMock.playback.volume == 45
+        self.coreMock.mixer.set_volume.assert_called_with(45)
 
     def test_volumeup_handler(self):
         dispatcher = lib.CommandDispatcher(self.coreMock,
                                            self.buttonPressEvent)
         dispatcher.handleCommand('volumeup')
-        assert self.coreMock.playback.volume == 55
+        self.coreMock.mixer.set_volume.assert_called_with(55)
 
 
 class LircThreadTest(unittest.TestCase):
@@ -185,10 +203,12 @@ class LircThreadTest(unittest.TestCase):
     def test_handleCommand(self, mock_logger):
         pylirc.nextcode = Mock(return_value=[{'config': 'commandXYZ'}])
 
-        thread = lib.LircThread(None)
-        thread.start()
-        time.sleep(0.1)
-        thread.frontendActive = False
-        thread.join()
+        with patch('select.select') as MockClass:
+            MockClass.return_value = ([1], [], [])
+            thread = lib.LircThread(None)
+            thread.start()
+            time.sleep(0.1)
+            thread.frontendActive = False
+            thread.join()
 
         assert mock_logger.debug.called

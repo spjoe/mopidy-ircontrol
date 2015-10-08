@@ -3,8 +3,7 @@ import pylirc
 import logging
 import tempfile
 import threading
-
-from time import sleep
+import select
 
 from mopidy.core import PlaybackState
 from mopidy.core import CoreListener
@@ -54,7 +53,7 @@ class CommandDispatcher(object):
         self._handlers[cmd] = handler
 
     def _playpauseHandler(self):
-        state = self.core.playback.state.get()
+        state = self.core.playback.get_state().get()
         if(state == PlaybackState.PAUSED):
             self.core.playback.resume().get()
         elif (state == PlaybackState.PLAYING):
@@ -63,40 +62,48 @@ class CommandDispatcher(object):
             self.core.playback.play().get()
 
     def _muteHandler(self):
-        self.core.playback.mute = not self.core.playback.mute.get()
+        self.core.mixer.set_mute(not self.core.mixer.get_mute().get())
 
     def _volumeFunction(self, changeFct):
         def volumeChange():
-            vol = self.core.playback.volume.get()
-            self.core.playback.volume = min(max(0, changeFct(vol)), 100)
+            vol = self.core.mixer.get_volume().get()
+            self.core.mixer.set_volume(min(max(0, changeFct(vol)), 100))
         return volumeChange
 
 
 class LircThread(threading.Thread):
     def __init__(self, configFile):
-        threading.Thread.__init__(self) 
+        threading.Thread.__init__(self)
         self.name = 'Lirc worker thread'
         self.configFile = configFile
         self.frontendActive = True
         self.ButtonPressed = Event()
-        
+
     def run(self):
         try:
             self.run_inside_try()
         except Exception as e:
             logger.warning('IRControl has problems starting pylirc: ' + str(e))
-            
 
     def run_inside_try(self):
         self.startPyLirc()
 
     def startPyLirc(self):
-        if(pylirc.init(LIRC_PROG_NAME, self.configFile, 0)):
+        lircHandle = pylirc.init(LIRC_PROG_NAME, self.configFile, 0)
+        if(lircHandle != 0):
             while(self.frontendActive):
+                self.consumePylirc(lircHandle)
+            pylirc.exit()
+
+    def consumePylirc(self, lircHandle):
+        try:
+            if(select.select([lircHandle], [], [], 1) == ([], [], [])):
+                pass
+            else:
                 s = pylirc.nextcode(1)
                 self.handleNextCode(s)
-                sleep(0.1)
-            pylirc.exit()
+        except Exception as e:
+            logger.warning('Exception during handling a command: ' + str(e))
 
     def handleNextCode(self, s):
         if s:
@@ -143,7 +150,8 @@ class IRControlFrontend(pykka.ThreadingActor, CoreListener):
         self.thread.join()
 
     def handleButtonPress(self, cmd):
-        CoreListener.send("IRButtonPressed", button=cmd)
+        pass
+        # CoreListener.send("IRButtonPressed", button=cmd)
 
     def generateLircConfigFile(self, config):
         '''Returns file name of generate config file for pylirc'''
