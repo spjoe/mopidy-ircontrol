@@ -7,6 +7,12 @@ import time
 
 from mock import Mock, patch, MagicMock
 from mopidy_IRControl import Extension, actor as lib
+from mopidy.models import Ref
+from pykka.threading import ThreadingFuture
+
+import sys
+import logging
+logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
 
 class ExtensionTest(unittest.TestCase):
@@ -17,6 +23,7 @@ class ExtensionTest(unittest.TestCase):
 
         self.assertIn('[IRControl]', config)
         self.assertIn('enabled = true', config)
+        self.assertIn('playlist_uri_template = m3u:playlist{0}.m3u', config)
 
     def test_get_config_schema(self):
         ext = Extension()
@@ -30,10 +37,14 @@ class ExtensionTest(unittest.TestCase):
         self.assertIn('volumedown', schema)
         self.assertIn('volumeup', schema)
 
+        self.assertIn('playlist_uri_template', schema)
+        for i in range(10):
+            self.assertIn('num{0}'.format(i), schema)
+
 
 class FrontendTest(unittest.TestCase):
-    @classmethod
-    def setup_class(self):
+
+    def setUp(self):
         IRconfig = {}
         IRconfig['next'] = 'KEY_NEXT'
         IRconfig['previous'] = 'KEY_PREVIOUS'
@@ -97,92 +108,103 @@ class CommandDispatcherTest(unittest.TestCase):
 
         self.coreMock.playback = playback
         self.coreMock.mixer = mixer
+        self.coreMock.playlists = Mock()
+        self.coreMock.tracklist = Mock()
+
+        self.dispatcher = lib.CommandDispatcher(self.coreMock,
+                                                {'playlist_uri_template': 'local:playlist:playlist{0}.m3u'},
+                                                self.buttonPressEvent)
 
     def commandXYZHandler(self):
         self.executed = True
 
     def test_registerHandler(self):
         self.executed = False
-        dispatcher = lib.CommandDispatcher(None, self.buttonPressEvent)
-        dispatcher.registerHandler('commandXYZ', self.commandXYZHandler)
-        dispatcher.handleCommand('commandXYZ')
+        self.dispatcher.registerHandler('commandXYZ', self.commandXYZHandler)
+
+        self.dispatcher.handleCommand('commandXYZ')
         assert self.executed
 
     def test_handleCommand(self):
         self.executed = False
-        dispatcher = lib.CommandDispatcher(None, self.buttonPressEvent)
-        dispatcher.handleCommand('commandXYZ')
+
+        self.dispatcher.handleCommand('commandXYZ')
         assert not self.executed
 
     def test_default_registered_handler(self):
-        dispatcher = lib.CommandDispatcher(None, self.buttonPressEvent)
-        self.assertIn('mute', dispatcher._handlers)
-        self.assertIn('playpause', dispatcher._handlers)
-        self.assertIn('next', dispatcher._handlers)
-        self.assertIn('previous', dispatcher._handlers)
-        self.assertIn('stop', dispatcher._handlers)
-        self.assertIn('volumedown', dispatcher._handlers)
-        self.assertIn('volumeup', dispatcher._handlers)
+        self.assertIn('mute', self.dispatcher._handlers)
+        self.assertIn('playpause', self.dispatcher._handlers)
+        self.assertIn('next', self.dispatcher._handlers)
+        self.assertIn('previous', self.dispatcher._handlers)
+        self.assertIn('stop', self.dispatcher._handlers)
+        self.assertIn('volumedown', self.dispatcher._handlers)
+        self.assertIn('volumeup', self.dispatcher._handlers)
+
+        for i in range(10):
+            self.assertIn('num{0}'.format(i), self.dispatcher._handlers)
 
     def test_stop_handler(self):
-        dispatcher = lib.CommandDispatcher(self.coreMock,
-                                           self.buttonPressEvent)
-        dispatcher.handleCommand('stop')
+        self.dispatcher.handleCommand('stop')
         self.coreMock.playback.stop.assert_called_with()
 
     def test_mute_handler(self):
-        dispatcher = lib.CommandDispatcher(self.coreMock,
-                                           self.buttonPressEvent)
-        dispatcher.handleCommand('mute')
+        self.dispatcher.handleCommand('mute')
         self.coreMock.mixer.set_mute.assert_called_with(True)
 
     def test_next_handler(self):
-        dispatcher = lib.CommandDispatcher(self.coreMock,
-                                           self.buttonPressEvent)
-        dispatcher.handleCommand('next')
+        self.dispatcher.handleCommand('next')
         self.coreMock.playback.next.assert_called_with()
 
     def test_previous_handler(self):
-        dispatcher = lib.CommandDispatcher(self.coreMock,
-                                           self.buttonPressEvent)
-        dispatcher.handleCommand('previous')
+        self.dispatcher.handleCommand('previous')
         self.coreMock.playback.previous.assert_called_with()
 
     def test_playpause_play_handler(self):
-        dispatcher = lib.CommandDispatcher(self.coreMock,
-                                           self.buttonPressEvent)
-        dispatcher.handleCommand('playpause')
+        self.dispatcher.handleCommand('playpause')
         self.coreMock.playback.play.assert_called_with()
 
     def test_playpause_resume_handler(self):
-        dispatcher = lib.CommandDispatcher(self.coreMock,
-                                           self.buttonPressEvent)
         self.coreMock.playback.get_state = \
             self.WithGet(mopidy.core.PlaybackState.PAUSED)
 
-        dispatcher.handleCommand('playpause')
+        self.dispatcher.handleCommand('playpause')
         self.coreMock.playback.resume.assert_called_with()
 
     def test_playpause_pause_handler(self):
-        dispatcher = lib.CommandDispatcher(self.coreMock,
-                                           self.buttonPressEvent)
         self.coreMock.playback.get_state = \
             self.WithGet(mopidy.core.PlaybackState.PLAYING)
 
-        dispatcher.handleCommand('playpause')
+        self.dispatcher.handleCommand('playpause')
         self.coreMock.playback.pause.assert_called_with()
 
     def test_volumedown_handler(self):
-        dispatcher = lib.CommandDispatcher(self.coreMock,
-                                           self.buttonPressEvent)
-        dispatcher.handleCommand('volumedown')
+        self.dispatcher.handleCommand('volumedown')
         self.coreMock.mixer.set_volume.assert_called_with(45)
 
     def test_volumeup_handler(self):
-        dispatcher = lib.CommandDispatcher(self.coreMock,
-                                           self.buttonPressEvent)
-        dispatcher.handleCommand('volumeup')
+        self.dispatcher.handleCommand('volumeup')
         self.coreMock.mixer.set_volume.assert_called_with(55)
+
+    def test_num_handler_no_playlist(self):
+        refs = ThreadingFuture()
+        refs.set(None)
+        self.coreMock.playlists.get_items = MagicMock(return_value=refs)
+
+        self.dispatcher.handleCommand('num0')
+        self.coreMock.playlists.get_items.assert_called_with('local:playlist:playlist0.m3u')
+        self.assertEqual(0, len(self.coreMock.playback.mock_calls))
+        self.assertFalse(0, len(self.coreMock.tracklist.mock_calls))
+
+    def test_num_handler_add_items(self):
+        refs = ThreadingFuture()
+        refs.set([Ref(uri='track1'), Ref(uri='track2')])
+        self.coreMock.playlists.get_items = MagicMock(return_value=refs)
+
+        self.dispatcher.handleCommand('num9')
+
+        self.coreMock.playlists.get_items.assert_called_with('local:playlist:playlist9.m3u')
+        self.coreMock.tracklist.add.assert_called_with(uris=['track1', 'track2'])
+        self.coreMock.playback.play.assert_called_with()
 
 
 class LircThreadTest(unittest.TestCase):

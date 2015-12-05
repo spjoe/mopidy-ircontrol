@@ -30,6 +30,7 @@ class Extension(ext.Extension):
         schema['menu'] = config.String()
         schema['favorites'] = config.String()
         schema['search'] = config.String()
+        schema['playlist_uri_template'] = config.String()
         schema['num0'] = config.String()
         schema['num1'] = config.String()
         schema['num2'] = config.String()

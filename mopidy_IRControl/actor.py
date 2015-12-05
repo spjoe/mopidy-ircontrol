@@ -27,8 +27,9 @@ class Event(list):
 
 
 class CommandDispatcher(object):
-    def __init__(self, core, buttonPressEvent):
+    def __init__(self, core, config, buttonPressEvent):
         self.core = core
+        self.config = config
         self._handlers = {}
         self.registerHandler('playpause', self._playpauseHandler)
         self.registerHandler('mute', self._muteHandler)
@@ -40,6 +41,10 @@ class CommandDispatcher(object):
                              self._volumeFunction(lambda vol: vol - 5))
         self.registerHandler('volumeup',
                              self._volumeFunction(lambda vol: vol + 5))
+
+        for i in range(10):
+            self.registerHandler('num{0}'.format(i), self._playlistFunction(i))
+
         buttonPressEvent.append(self.handleCommand)
 
     def handleCommand(self, cmd):
@@ -70,6 +75,20 @@ class CommandDispatcher(object):
             self.core.mixer.set_volume(min(max(0, changeFct(vol)), 100))
         return volumeChange
 
+    def _playPlaylist(self, uri):
+        refs = self.core.playlists.get_items(uri).get()
+        if not refs:
+            logger.warn("Playlist '%s' does not exist", uri)
+            return
+        self.core.tracklist.clear()
+        uris = map(lambda ref: ref.uri, refs)
+        self.core.tracklist.add(uris=uris)
+        self.core.tracklist.set_consume(False)
+        self.core.tracklist.set_repeat(True)
+        self.core.playback.play()
+
+    def _playlistFunction(self, num):
+        return lambda: self._playPlaylist(self.config['playlist_uri_template'].format(num))
 
 class LircThread(threading.Thread):
     def __init__(self, configFile):
@@ -122,6 +141,7 @@ class IRControlFrontend(pykka.ThreadingActor, CoreListener):
     def __init__(self, config, core):
         super(IRControlFrontend, self).__init__()
         self.core = core
+        self.config = config['IRControl']
         self.configFile = self.generateLircConfigFile(config['IRControl'])
         logger.debug('lircrc file:{0}'.format(self.configFile))
 
@@ -131,6 +151,7 @@ class IRControlFrontend(pykka.ThreadingActor, CoreListener):
             self.thread = LircThread(self.configFile)
             self.dispatcher = CommandDispatcher(
                 self.core,
+                self.config,
                 self.thread.ButtonPressed)
             self.thread.ButtonPressed.append(self.handleButtonPress)
             self.thread.start()
