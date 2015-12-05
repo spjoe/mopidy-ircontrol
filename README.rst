@@ -65,3 +65,7 @@ v0.1.0 - 08.10.2015
 ----------------------------------------
 
 - Initial release.
+
+Contributors
+============
+- `logogin <https://github.com/logogin>`_
