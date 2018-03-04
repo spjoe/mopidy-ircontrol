@@ -2,11 +2,11 @@
 Mopidy-IRControl
 ****************************
 
-.. image:: https://pypip.in/v/Mopidy-IRControl/badge.png
+.. image:: https://img.shields.io/pypi/v/Mopidy-IRControl.svg
     :target: https://pypi.python.org/pypi/Mopidy-IRControl/
     :alt: Latest PyPI version
 
-.. image:: https://pypip.in/d/Mopidy-IRControl/badge.png
+.. image:: https://img.shields.io/pypi/dm/Mopidy-IRControl.svg
     :target: https://pypi.python.org/pypi/Mopidy-IRControl/
     :alt: Number of PyPI downloads
 
